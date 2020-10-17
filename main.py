@@ -1,13 +1,14 @@
-
 import csv
 import ast
 import logging
 import pandas as pd
+import datetime as dt
 from dateutil.parser import parse
 # from classes import Genre
 # from classes import ProductionCompany
 
-logs = logging.getLogger(__name__)
+logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # Initialize the variables used throughout the code
 movie_list = []
@@ -16,6 +17,7 @@ movie_production_company_list = []
 genre_list = []
 movie_genre_list = []
 error_list = []
+# begin_time = dt.datetime.now()
 # genre_set = set()
 # production_company_set = set()
 
@@ -105,7 +107,7 @@ def load_and_transform(filename):
                 setup_productioncompany(src_row)
                 setup_genre(src_row)
             except Exception as exc:
-                logs.error(f"Error setting up tables: Error Code:{str(exc)}, Error Row: {src_row} \n")
+                logger.error(f"Error setting up tables: Error Code:{str(exc)}, Error Row: {src_row}")
                 error_list.append(
                     {
                         "error_row": src_row,
@@ -124,15 +126,15 @@ def load_and_transform(filename):
         #     })
 
 
-def export_to_csv():
+def export_to_csv(load_trans_time):
     # Convert all lists to DataFrames. Remove duplicates for Genre and Production Company
     # Then sort the DateFrames by the ID columns for non-bridge tables
     movie_df = pd.DataFrame(movie_list).sort_values(by=['movie_id'])
-    production_company_df = pd.DataFrame(production_company_list) \
+    production_company_df = pd.DataFrame(production_company_list)\
         .drop_duplicates(ignore_index=True).sort_values(by=['production_company_id'])
     movie_production_company_df = pd.DataFrame(movie_production_company_list)
     movie_genre_df = pd.DataFrame(movie_genre_list)
-    genre_df = pd.DataFrame(genre_list). \
+    genre_df = pd.DataFrame(genre_list).\
         drop_duplicates(ignore_index=True).sort_values(by=['genre_id'])
     error_df = pd.DataFrame(error_list)
     # Use pandas to push to csvs without the DataFrame index
@@ -142,12 +144,23 @@ def export_to_csv():
     movie_genre_df.to_csv(r'files/output/movie_genre_csv.csv', index=False)
     movie_df.to_csv(r'files/output/movie_csv.csv', index=False)
     error_df.to_csv(r'files/output/error_data.csv')
+    export_time = dt.datetime.now()
+    logger.info(f"Export Runtime: {export_time - load_trans_time}, Movies Exported: {len(movie_df.index)}"
+                f", Genres Exported: {len(genre_df.index)}, Prod Comps Exported: {len(production_company_df.index)}")
 
 
 if __name__ == '__main__':
-    # Executes the main loader/transformer and then exports to csv
+    # Executes the main loader/transformer and then exports to csv and logs all steps
+    begin_time = dt.datetime.now()
+    logger.info("Starting Program - Load and Transform")
     load_and_transform('files/input/movies_metadata.csv')
-    export_to_csv()
+    load_time = dt.datetime.now()
+    logger.info(f"Transform Runtime: {load_time-begin_time}, Movies List: {len(movie_list)}"
+                f", Genres List: {len(genre_list)}, Prod Comps List: {len(production_company_list)}")
+    export_to_csv(load_time)
+    end_time = dt.datetime.now()
+    logger.info(f"Program Full Runtime: {end_time-begin_time}, "
+                f"Records Loaded: {len(movie_list)}, Number of Errors: {len(error_list)}")
 
-    # Need to flesh out logging, add tests and possibly break into sections
+
 
